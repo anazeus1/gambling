@@ -308,6 +308,7 @@ def massinielo_roulette(worksheet, bet_unit, money):
             i = i+1
             if i == 11:
                 worksheet.write("F"+str(row_index), money)
+                money_won.append(money)
 
                 break
             if excel_sheet[i][j] > 100:
@@ -333,6 +334,7 @@ def massinielo_roulette(worksheet, bet_unit, money):
             j = j+1
             if j == 11:
                 worksheet.write("F"+str(row_index), money)
+                money_won.append(money)
 
                 break
             worksheet.write("B"+str(row_index), number, format_black)
@@ -359,6 +361,7 @@ def massinielo_roulette(worksheet, bet_unit, money):
                 j = j+1
                 if j == 11:
                     worksheet.write("F"+str(row_index), money)
+                    money_won.append(money)
 
                     break
 
@@ -381,6 +384,8 @@ def massinielo_roulette(worksheet, bet_unit, money):
                 i = i+1
                 if i == 11:
                     worksheet.write("F"+str(row_index), money)
+                    money_won.append(money)
+
                     break
 
                 if excel_sheet[i][j] > 100:
@@ -419,19 +424,27 @@ format_black = workbook.add_format(
     {"bg_color": "#000000", "font_color": "#ffffff"})
 format_green = workbook.add_format(
     {"bg_color": "#00ff00"})
+worksheet1 = workbook.add_worksheet(name="result")
 
 
-worksheet = workbook.add_worksheet(name="result")
+for k in range(100):
+    worksheet = workbook.add_worksheet(name="result"+str(k))
 
-worksheet.write("A1", "Number ID")
-worksheet.write("B1", "Number")
-worksheet.write("C1", "Bet by unit")
-worksheet.write("D1", "bet by real money")
-worksheet.write("E1", "Betting color")
-worksheet.write("F1", "Money now")
-bet_unit = 0.2
-money = 10
-i, j, l, z = massinielo_roulette(worksheet, bet_unit, money)
+    worksheet.write("A1", "Number ID")
+    worksheet.write("B1", "Number")
+    worksheet.write("C1", "Bet by unit")
+    worksheet.write("D1", "bet by real money")
+    worksheet.write("E1", "Betting color")
+    worksheet.write("F1", "Money now")
+    bet_unit = 0.2
+    money = 24.2
+    Max, Max_index, row_index, money = massinielo_roulette(
+        worksheet, bet_unit, money)
+    worksheet1.write("A"+str(k+1), Max)
+    worksheet1.write("B"+str(k+1), Max_index)
+    worksheet1.write("C"+str(k+1), row_index)
+    worksheet1.write("D"+str(k+1), money)
+
 
 # roulette_with_button()
 workbook.close()
