@@ -8,14 +8,12 @@ import win32con
 import win32ui
 import imutils
 
-# get coordinates of the top right corner and the bottm left corner of each box containing each deflactor
 
-
-def get_position():
+def get_coordinates():
     pyautogui.alert(
         "Put your mouse cursor on the top right corner of the wheel.You have 2 seconds ")
     sleep(2)
-    xtr1, ytr1 = pyautogui.position()  # coordinate of the first deflector
+    xtr1, ytr1 = pyautogui.position()
 
     pyautogui.alert(
         "Put your mouse cursor on the bottm left corner of wheel.You have 2 seconds ")
@@ -23,21 +21,16 @@ def get_position():
     xbl1, ybl1 = pyautogui.position()
 
     pyautogui.alert(
-        "Put your mouse cursor on the center.You have 2 seconds ")
+        "Put your mouse cursor on the top right of the ball box.You have 2 seconds ")
     sleep(2)
-    center = pyautogui.position()
+    xtrbb, ytrbb = pyautogui.position()
 
     pyautogui.alert(
-        "Put your mouse cursor on the top of the rotor.You have 2 seconds ")
+        "Put your mouse cursor on the bottm left of the ball box.You have 2 seconds ")
     sleep(2)
-    x_rotor, y_rotor_1 = pyautogui.position()
+    xblbb, yblbb = pyautogui.position()
 
-    pyautogui.alert(
-        "Put your mouse cursor on the bottm of the rotor.You have 2 seconds ")
-    sleep(2)
-    x_rotor, y_rotor_2 = pyautogui.position()
-
-    pyautogui.alert(
+    """pyautogui.alert(
         "Put your mouse cursor on the left of the rotor.You have 2 seconds ")
     sleep(2)
     x_rotor_1, y_rotor = pyautogui.position()
@@ -45,18 +38,16 @@ def get_position():
     pyautogui.alert(
         "Put your mouse cursor on the right of the rotor.You have 2 seconds ")
     sleep(2)
-    x_rotor_2, y_rotor = pyautogui.position()
+    x_rotor_2, y_rotor = pyautogui.position()"""
 
-    minor_axis = y_rotor_2-y_rotor_1
-    major_axis = x_rotor_2-x_rotor_1
-
-    return xtr1, ytr1, xbl1, ybl1, center, major_axis, minor_axis
+    return xtr1, ytr1, xbl1, ybl1, xtrbb, ytrbb, xblbb, yblbb
 
 
 def get_screenshot():
     w = 1920
     h = 1080
     hwnd = None
+
     # get the window image data
     wDC = win32gui.GetWindowDC(hwnd)
     dcObj = win32ui.CreateDCFromHandle(wDC)
@@ -77,90 +68,112 @@ def get_screenshot():
     cDC.DeleteDC()
     win32gui.ReleaseDC(hwnd, wDC)
     win32gui.DeleteObject(dataBitMap.GetHandle())
-
-    # drop the alpha channel, or cv.matchTemplate() will throw an error like:
-    #   error: (-215:Assertion failed) (depth == CV_8U || depth == CV_32F) && type == _templ.type()
-    #   && _img.dims() <= 2 in function 'cv::matchTemplate'
-
-    # make image C_CONTIGUOUS to avoid errors that look like:
-    #   File ... in draw_rectangles
-    #   TypeError: an integer is required (got type tuple)
-    # see the discussion here:
-    # https://github.com/opencv/opencv/issues/14866#issuecomment-580207109
     img = np.ascontiguousarray(img)
 
     return img
+
+# return the box containg roulette wheel Using numpy slicing.
 
 
 def crop_screenshot(screenshot, xtr, ytr, xbl, ybl):
     return screenshot[ytr:ybl,
                       xbl:xtr]
 
+# return blurred grayed image
+
 
 def gray_blur_image(image):
 
+    # convert image to gray
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # blur the image  We should specify the width and height of the kernel which should be positive and odd.
     blurred_image = cv2.GaussianBlur(gray_image, (17, 17), 0)
     return blurred_image
 
-
-def Hough_circles(threshold,):
-    circles = cv2.HoughCircles(threshold, cv2.HOUGH_GRADIENT, 1.2,
-                               100, param1=5, param2=20, minRadius=1, maxRadius=10
-                               )
-
-    if circles is not None:
-        circles = np.round(circles[0, :].astype("int"))
-        for (x, y, r) in circles:
-            cv2.circle(threshold, (x, y), r, (0, 255, 0), 4)
+# return the baseline frame that we are going to compare the video capture frames against
 
 
-# xtr1, ytr1, xbl1, ybl1, center, major_axis, minor_axis = get_position()
-sleep(4)
-xtr1, ytr1, xbl1, ybl1, center, minor_axis, major_axis = 1292, 166, 622, 550, (
-    949, 353), 105, 125
-screenshot = get_screenshot()
-base_line_image = crop_screenshot(screenshot, xtr1, ytr1, xbl1, ybl1)
-
-
-base_line_image_for_ball = gray_blur_image(base_line_image)
-base_line_image_for_ball = cv2.ellipse(
-    base_line_image, (327, 192), (major_axis, minor_axis), 0, 0, 360, (255, 255, 255), thickness=-1)
-
-print(base_line_image_for_ball.shape)
-
-f = time()
-times = []
-while True:
+def get_baseline(xtr, ytr, xbl, ybl):
     screenshot = get_screenshot()
 
-    image = crop_screenshot(screenshot, xtr1, ytr1, xbl1, ybl1)
+    #   we put the elipse to hide the moving rotator and only detect the ball
+    base_line_image = crop_screenshot(screenshot, xtr, ytr, xbl, ybl)
+    # base_line_image = cv2.ellipse(
+    # base_line_image, center, axis, 0, 0, 360, (0, 0, 255), thickness=-1)
+
+    base_line_image = gray_blur_image(base_line_image)
+    return base_line_image
+
+
+def track_ball(base_line_image_for_ball, image):
+    # return the contour of the moving ball
+
+    # we put the elipse to hide the moving rotator and only detect the ball
+    # image = cv2.ellipse(
+    #  image, center, axis, 0, 0, 360, (0, 0, 255), thickness=-1)
 
     gray_image_for_ball = gray_blur_image(image)
-    gray_image_for_ball = cv2.ellipse(
-        gray_image_for_ball, (327, 192), (major_axis, minor_axis), 0, 0, 360, (255, 255, 255), thickness=-1)
-    print(gray_image_for_ball.shape)
 
     # Calculating the absolute difference between baseline image and incoming images and image thresholding
     delta = cv2.absdiff(base_line_image_for_ball, gray_image_for_ball)
-
     threshold = cv2.threshold(delta, 25, 255, cv2.THRESH_BINARY)[1]
+
     # dilate the thresholded image to fill in holes, then find contours
     # on thresholded image
     thresh = cv2.dilate(threshold, None, iterations=2)
     contours = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
                                 cv2.CHAIN_APPROX_SIMPLE)
     contours = imutils.grab_contours(contours)
-    for contour in contours:
-        (x, y, w, h) = cv2.boundingRect(contour)
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        text = "Occupied"
+    return contours
 
-    cv2.imshow("screen_recorder", image)
-    cv2.imshow("threshhold", threshold)
-    times.append(1/(time()-f))
 
-    f = time()
+xtr1, ytr1, xbl1, ybl1, xtrbb, ytrbb, xblbb, yblbb = get_coordinates()
+# this value work for evoltion speed auto roulette classic view
+# xtr1, ytr1, xbl1, ybl1, center, minor_axis, major_axis = 1292, 166, 622, 550, (
+# 949, 353), 105, 125
+base_line_image_for_ball = get_baseline(xtrbb, ytrbb, xblbb, yblbb)
+
+t = time()
+times = []
+while True:
+    screenshot = get_screenshot()
+    main_image = crop_screenshot(screenshot, xtr1, ytr1, xbl1, ybl1)
+
+    image = crop_screenshot(screenshot, xtrbb, ytrbb, xblbb, yblbb)
+    image_for_green = image.copy()
+
+    # draw line for angular speed
+    # main_image = cv2.rectangle(
+    #   main_image, (290, 30), (350, 100), (0, 0, 255), 2)
+
+    # track ball
+
+    contours = track_ball(base_line_image_for_ball, image)
+    if contours is not None:
+        for contour in contours:
+            (x, y, w, h) = cv2.boundingRect(contour)
+
+            v = time()-t
+            if v > 0.2:
+
+                print(v)
+                t = time()
+                times.append(v)
+
+            cv2.rectangle(image, (x, y),
+                          (x + w, y + h), (0, 255, 0), 2)
+
+    # track green
+    """hsv = cv2.cvtColor(image_for_green, cv2.COLOR_BGR2HSV)
+    lower_green = np.array([])
+    upper_green = np.array([])
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+    result = cv2.bitwise_and(image_for_ball, image_for_ball, mask=mask)
+    cv2.imshow("screen_recorder2", image)"""
+
+    cv2.imshow("screen_recorder", main_image)
+    cv2.imshow("screen_recorder12", image)
 
     if cv2.waitKey(1) == ord("q"):
         cv2.destroyAllWindows()
