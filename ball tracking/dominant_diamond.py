@@ -155,7 +155,7 @@ while True:
             (x, y, w, h) = cv2.boundingRect(contour)
 
             v = time()-t
-            if v > 0.2:
+            if v > 0.31:
 
                 print(v)
                 t = time()
