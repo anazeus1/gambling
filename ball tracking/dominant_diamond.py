@@ -2,7 +2,7 @@ import tabnanny
 import cv2
 import pyautogui
 import numpy as np
-from time import time, sleep
+from time import sleep
 import win32gui
 import win32con
 import win32ui
@@ -20,16 +20,6 @@ def get_coordinates():
     sleep(2)
     xbl1, ybl1 = pyautogui.position()
 
-    """pyautogui.alert(
-        "Put your mouse cursor on the top right of the ball box.You have 2 seconds ")
-    sleep(2)
-    xtrbb, ytrbb = pyautogui.position()
-
-    pyautogui.alert(
-        "Put your mouse cursor on the bottm left of the ball box.You have 2 seconds ")
-    sleep(2)
-    xblbb, yblbb = pyautogui.position()"""
-
     pyautogui.alert(
         "Put your mouse cursor on the center of the rotor.You have 2 seconds ")
     sleep(2)
@@ -38,11 +28,11 @@ def get_coordinates():
     pyautogui.alert(
         "Put your mouse cursor on the top of the rotor.You have 2 seconds ")
     sleep(2)
-    x_top_rotor, y_top_rotor = pyautogui.position()
+    y_top_rotor = pyautogui.position()[1]
     pyautogui.alert(
         "Put your mouse cursor on the right of the rotor.You have 2 seconds ")
     sleep(2)
-    x_right_rotor, y_right_rotor = pyautogui.position()
+    x_right_rotor = pyautogui.position()[0]
 
     return xtr1, ytr1, xbl1, ybl1, center, abs(center[1]-y_top_rotor), abs(center[0]-x_right_rotor)
 
@@ -93,38 +83,35 @@ def gray_blur_image(image):
 
     # blur the image  We should specify the width and height of the kernel which should be positive and odd.
     blurred_image = cv2.GaussianBlur(gray_image, (17, 17), 0)
+
     return blurred_image
 
 # return the baseline frame that we are going to compare the video capture frames against
 
 
-def get_baseline(xtr, ytr, xbl, ybl):
-    screenshot = get_screenshot()
-    base_line_image = cv2.ellipse(
+def transform_screenshot(screenshot):
 
+    base_line_image = cv2.ellipse(
         screenshot, center, (horizental_axis, vertical_axis), 0, 0, 360, (0, 0, 255), thickness=-1)
 
     #   we put the elipse to hide the moving rotator and only detect the ball
-    base_line_image = crop_screenshot(base_line_image, xtr, ytr, xbl, ybl)
+    base_line_image = crop_screenshot(base_line_image, xtr1, ytr1, xbl1, ybl1)
 
-    cv2.imwrite("ommel3.png", base_line_image)
     base_line_image = gray_blur_image(base_line_image)
+    return base_line_image
+
+
+def get_baseline(xtr, ytr, xbl, ybl):
+    screenshot = get_screenshot()
+    base_line_image = transform_screenshot(screenshot)
+
     return base_line_image
 
 
 def track_ball(base_line_image_for_ball, screenshot):
     # return the contour of the moving ball
 
-    # we put the elipse to hide the moving rotator and only detect the ball
-
-    image = cv2.ellipse(
-        screenshot, center, (horizental_axis, vertical_axis), 0, 0, 360, (0, 0, 255), thickness=-1)
-
-    image = crop_screenshot(image, xtr1, ytr1, xbl1, ybl1)
-
-    cv2.imwrite("ommel5.png", image)
-
-    gray_image_for_ball = gray_blur_image(image)
+    gray_image_for_ball = transform_screenshot(screenshot)
 
     # Calculating the absolute difference between baseline image and incoming images and image thresholding
     delta = cv2.absdiff(base_line_image_for_ball, gray_image_for_ball)
@@ -140,9 +127,7 @@ def track_ball(base_line_image_for_ball, screenshot):
 
 
 xtr1, ytr1, xbl1, ybl1, center, vertical_axis, horizental_axis = get_coordinates()
-# this value work for evoltion speed auto roulette classic viewd
-# xtr1, ytr1, xbl1, ybl1, center, axis = 1292, 166, 622, 550, (
-#   949, 353), (105, 125)
+
 
 base_line_image_for_ball = get_baseline(
     xtr1, ytr1, xbl1, ybl1)
