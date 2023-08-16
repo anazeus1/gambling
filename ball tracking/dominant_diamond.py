@@ -1,4 +1,4 @@
-from turtle import position, width
+import tabnanny
 import cv2
 import pyautogui
 import numpy as np
@@ -20,7 +20,7 @@ def get_coordinates():
     sleep(2)
     xbl1, ybl1 = pyautogui.position()
 
-    pyautogui.alert(
+    """pyautogui.alert(
         "Put your mouse cursor on the top right of the ball box.You have 2 seconds ")
     sleep(2)
     xtrbb, ytrbb = pyautogui.position()
@@ -28,19 +28,23 @@ def get_coordinates():
     pyautogui.alert(
         "Put your mouse cursor on the bottm left of the ball box.You have 2 seconds ")
     sleep(2)
-    xblbb, yblbb = pyautogui.position()
+    xblbb, yblbb = pyautogui.position()"""
 
-    """pyautogui.alert(
-        "Put your mouse cursor on the left of the rotor.You have 2 seconds ")
+    pyautogui.alert(
+        "Put your mouse cursor on the center of the rotor.You have 2 seconds ")
     sleep(2)
-    x_rotor_1, y_rotor = pyautogui.position()
+    center = pyautogui.position()
 
+    pyautogui.alert(
+        "Put your mouse cursor on the top of the rotor.You have 2 seconds ")
+    sleep(2)
+    x_top_rotor, y_top_rotor = pyautogui.position()
     pyautogui.alert(
         "Put your mouse cursor on the right of the rotor.You have 2 seconds ")
     sleep(2)
-    x_rotor_2, y_rotor = pyautogui.position()"""
+    x_right_rotor, y_right_rotor = pyautogui.position()
 
-    return xtr1, ytr1, xbl1, ybl1, xtrbb, ytrbb, xblbb, yblbb
+    return xtr1, ytr1, xbl1, ybl1, center, abs(center[1]-y_top_rotor), abs(center[0]-x_right_rotor)
 
 
 def get_screenshot():
@@ -96,22 +100,29 @@ def gray_blur_image(image):
 
 def get_baseline(xtr, ytr, xbl, ybl):
     screenshot = get_screenshot()
+    base_line_image = cv2.ellipse(
+
+        screenshot, center, (horizental_axis, vertical_axis), 0, 0, 360, (0, 0, 255), thickness=-1)
 
     #   we put the elipse to hide the moving rotator and only detect the ball
-    base_line_image = crop_screenshot(screenshot, xtr, ytr, xbl, ybl)
-    # base_line_image = cv2.ellipse(
-    # base_line_image, center, axis, 0, 0, 360, (0, 0, 255), thickness=-1)
+    base_line_image = crop_screenshot(base_line_image, xtr, ytr, xbl, ybl)
 
+    cv2.imwrite("ommel3.png", base_line_image)
     base_line_image = gray_blur_image(base_line_image)
     return base_line_image
 
 
-def track_ball(base_line_image_for_ball, image):
+def track_ball(base_line_image_for_ball, screenshot):
     # return the contour of the moving ball
 
     # we put the elipse to hide the moving rotator and only detect the ball
-    # image = cv2.ellipse(
-    #  image, center, axis, 0, 0, 360, (0, 0, 255), thickness=-1)
+
+    image = cv2.ellipse(
+        screenshot, center, (horizental_axis, vertical_axis), 0, 0, 360, (0, 0, 255), thickness=-1)
+
+    image = crop_screenshot(image, xtr1, ytr1, xbl1, ybl1)
+
+    cv2.imwrite("ommel5.png", image)
 
     gray_image_for_ball = gray_blur_image(image)
 
@@ -128,20 +139,18 @@ def track_ball(base_line_image_for_ball, image):
     return contours
 
 
-xtr1, ytr1, xbl1, ybl1, xtrbb, ytrbb, xblbb, yblbb = get_coordinates()
-# this value work for evoltion speed auto roulette classic view
-# xtr1, ytr1, xbl1, ybl1, center, minor_axis, major_axis = 1292, 166, 622, 550, (
-# 949, 353), 105, 125
-base_line_image_for_ball = get_baseline(xtrbb, ytrbb, xblbb, yblbb)
+xtr1, ytr1, xbl1, ybl1, center, vertical_axis, horizental_axis = get_coordinates()
+# this value work for evoltion speed auto roulette classic viewd
+# xtr1, ytr1, xbl1, ybl1, center, axis = 1292, 166, 622, 550, (
+#   949, 353), (105, 125)
 
-t = time()
-times = []
+base_line_image_for_ball = get_baseline(
+    xtr1, ytr1, xbl1, ybl1)
+
 while True:
-    screenshot = get_screenshot()
-    main_image = crop_screenshot(screenshot, xtr1, ytr1, xbl1, ybl1)
-
-    image = crop_screenshot(screenshot, xtrbb, ytrbb, xblbb, yblbb)
-    image_for_green = image.copy()
+    screenshot_to_show = get_screenshot()
+    screenshot_to_compare = screenshot_to_show.copy()
+    image = crop_screenshot(screenshot_to_show, xtr1, ytr1, xbl1, ybl1)
 
     # draw line for angular speed
     # main_image = cv2.rectangle(
@@ -149,17 +158,10 @@ while True:
 
     # track ball
 
-    contours = track_ball(base_line_image_for_ball, image)
+    contours = track_ball(base_line_image_for_ball, screenshot_to_compare)
     if contours is not None:
         for contour in contours:
             (x, y, w, h) = cv2.boundingRect(contour)
-
-            v = time()-t
-            if v > 0.31:
-
-                print(v)
-                t = time()
-                times.append(v)
 
             cv2.rectangle(image, (x, y),
                           (x + w, y + h), (0, 255, 0), 2)
@@ -172,11 +174,8 @@ while True:
     result = cv2.bitwise_and(image_for_ball, image_for_ball, mask=mask)
     cv2.imshow("screen_recorder2", image)"""
 
-    cv2.imshow("screen_recorder", main_image)
     cv2.imshow("screen_recorder12", image)
 
     if cv2.waitKey(1) == ord("q"):
         cv2.destroyAllWindows()
-        print(times)
-        print(np.average(times))
         break
